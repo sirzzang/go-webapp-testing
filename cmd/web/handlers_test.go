@@ -26,9 +26,6 @@ func Test_application_handlers(t *testing.T) {
 	ts := httptest.NewTLSServer(routes)
 	defer ts.Close()
 
-	// fix template directory path
-	pathToTemplates = "./../../templates/"
-
 	// range through test data
 	for _, e := range theTests {
 		resp, err := ts.Client().Get(ts.URL + e.url) // built-in server root url + "/"
@@ -42,45 +39,6 @@ func Test_application_handlers(t *testing.T) {
 			t.Errorf("for %s: expected status %d, but got %d", e.name, e.expectedStatusCode, resp.StatusCode)
 		}
 	}
-}
-
-func TestAppHomeOld(t *testing.T) {
-	req, _ := http.NewRequest("GET", "/", nil)
-
-	req = addContextAndSessionToRequest(req, app)
-
-	res := httptest.NewRecorder()
-
-	handler := http.HandlerFunc(app.Home)
-	handler.ServeHTTP(res, req)
-
-	// check status code
-	if res.Code != http.StatusOK {
-		t.Errorf("TestAppHome returned wrong status code. Expected 200 but got %d", res.Code)
-	}
-
-	// check response body
-	body, _ := io.ReadAll(res.Body)
-	if !strings.Contains(string(body), `<small>From session:`) {
-		t.Error("Did not find correct context in the html")
-	}
-}
-
-func getCtx(req *http.Request) context.Context {
-	ctx := context.WithValue(req.Context(), contextUserKey, "unknown")
-	return ctx
-}
-
-func addContextAndSessionToRequest(req *http.Request, app application) *http.Request {
-
-	// add context to request
-	req = req.WithContext(getCtx(req))
-
-	// add information to session
-	ctx, _ := app.Session.Load(req.Context(), req.Header.Get("X-Session"))
-
-	return req.WithContext(ctx)
-
 }
 
 func TestAppHome(t *testing.T) {
@@ -125,4 +83,21 @@ func TestAppHome(t *testing.T) {
 			t.Errorf("%s: Did not find %s in response body", e.name, e.expectedHTML)
 		}
 	}
+}
+
+func getCtx(req *http.Request) context.Context {
+	ctx := context.WithValue(req.Context(), contextUserKey, "unknown")
+	return ctx
+}
+
+func addContextAndSessionToRequest(req *http.Request, app application) *http.Request {
+
+	// add context to request
+	req = req.WithContext(getCtx(req))
+
+	// add information to session
+	ctx, _ := app.Session.Load(req.Context(), req.Header.Get("X-Session"))
+
+	return req.WithContext(ctx)
+
 }
