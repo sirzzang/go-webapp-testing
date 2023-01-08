@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -42,23 +44,25 @@ func Test_application_handlers(t *testing.T) {
 	}
 }
 
-func TestAppHome(t *testing.T) {
-	// create a request
+func TestAppHomeOld(t *testing.T) {
 	req, _ := http.NewRequest("GET", "/", nil)
 
-	// add context and session information
 	req = addContextAndSessionToRequest(req, app)
 
-	// response writer
 	res := httptest.NewRecorder()
 
-	// handler
 	handler := http.HandlerFunc(app.Home)
 	handler.ServeHTTP(res, req)
 
 	// check status code
 	if res.Code != http.StatusOK {
 		t.Errorf("TestAppHome returned wrong status code. Expected 200 but got %d", res.Code)
+	}
+
+	// check response body
+	body, _ := io.ReadAll(res.Body)
+	if !strings.Contains(string(body), `<small>From session:`) {
+		t.Error("Did not find correct context in the html")
 	}
 }
 
@@ -77,4 +81,48 @@ func addContextAndSessionToRequest(req *http.Request, app application) *http.Req
 
 	return req.WithContext(ctx)
 
+}
+
+func TestAppHome(t *testing.T) {
+	var tests = []struct {
+		name         string
+		putInSession string
+		expectedHTML string
+	}{
+		{"first visit", "", "<small>From session:"},
+		{"second visit", "Hello, World!", "<small>From session: Hello, World!"},
+	}
+
+	for _, e := range tests {
+
+		// create a request
+		req, _ := http.NewRequest("GET", "/", nil)
+
+		// add context and session information
+		req = addContextAndSessionToRequest(req, app)
+
+		_ = app.Session.Destroy(req.Context())
+
+		if e.putInSession != "" {
+			app.Session.Put(req.Context(), "test", e.putInSession)
+		}
+
+		// response writer
+		res := httptest.NewRecorder()
+
+		// handler
+		handler := http.HandlerFunc(app.Home)
+		handler.ServeHTTP(res, req)
+
+		// check status code
+		if res.Code != http.StatusOK {
+			t.Errorf("TestAppHome returned wrong status code; expected 200 but got %d", res.Code)
+		}
+
+		// check body
+		body, _ := io.ReadAll(res.Body)
+		if !strings.Contains(string(body), e.expectedHTML) {
+			t.Errorf("%s: Did not find %s in response body", e.name, e.expectedHTML)
+		}
+	}
 }
