@@ -102,6 +102,21 @@ func TestApp_renderWithBadTemplate(t *testing.T) {
 
 }
 
+func TestApp_renderParseWithBadTemplate(t *testing.T) {
+
+	pathToTemplates = "./testdata/"
+
+	req, _ := http.NewRequest("GET", "/", nil)
+	req = addContextAndSessionToRequest(req, app)
+	res := httptest.NewRecorder()
+
+	err := app.render(res, req, "bad.template.gohtml", &TemplateData{})
+	t.Log(err)
+	if err == nil {
+		t.Error("Expected error when parsing bad template, but did not get one.")
+	}
+}
+
 func getCtx(req *http.Request) context.Context {
 	ctx := context.WithValue(req.Context(), contextUserKey, "unknown")
 	return ctx
