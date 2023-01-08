@@ -22,8 +22,6 @@ func Test_application_addIPToContext(t *testing.T) {
 		{"invalid port", "", "", "hello:world", false},
 	}
 
-	// var app application
-
 	// create a dummy handler we'll use to check the context
 	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// make sure that the value exists in context
@@ -62,9 +60,6 @@ func Test_application_addIPToContext(t *testing.T) {
 }
 
 func Test_application_ipFromContext(t *testing.T) {
-
-	// create an app var of type application
-	// var app application
 
 	// get a context
 	var ctx = context.Background()
