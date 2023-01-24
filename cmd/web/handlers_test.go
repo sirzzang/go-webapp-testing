@@ -99,6 +99,9 @@ func TestApp_renderWithBadTemplate(t *testing.T) {
 		t.Error("Expected error from bad template, but did not get one.")
 	}
 
+	// restore bad template path
+	pathToTemplates = "./../../templates/"
+
 }
 
 func TestApp_renderParseWithBadTemplate(t *testing.T) {
