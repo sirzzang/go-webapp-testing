@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,12 +13,15 @@ import (
 
 func Test_application_handlers(t *testing.T) {
 	var theTests = []struct {
-		name               string
-		url                string
-		expectedStatusCode int
+		name                    string
+		url                     string
+		expectedStatusCode      int
+		expectedURL             string
+		expectedFirstStatusCode int
 	}{
-		{"home", "/", http.StatusOK},
-		{"404", "/foo", http.StatusNotFound},
+		{"home", "/", http.StatusOK, "/", http.StatusOK},
+		{"404", "/foo", http.StatusNotFound, "/foo", http.StatusNotFound},
+		{"profile", "/user/profile", http.StatusOK, "/", http.StatusTemporaryRedirect},
 	}
 
 	routes := app.routes()
@@ -26,7 +30,17 @@ func Test_application_handlers(t *testing.T) {
 	ts := httptest.NewTLSServer(routes)
 	defer ts.Close()
 
-	// range through test data
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+	}
+
+	client := &http.Client{
+		Transport: tr,
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+
 	for _, e := range theTests {
 		resp, err := ts.Client().Get(ts.URL + e.url) // built-in server root url + "/"
 		t.Log(ts.URL + e.url)                        // http://127.0.0.1:51120/home
@@ -36,7 +50,16 @@ func Test_application_handlers(t *testing.T) {
 		}
 
 		if resp.StatusCode != e.expectedStatusCode {
-			t.Errorf("for %s: expected status %d, but got %d", e.name, e.expectedStatusCode, resp.StatusCode)
+			t.Errorf("%s: expected status %d, but got %d", e.name, e.expectedStatusCode, resp.StatusCode)
+		}
+
+		if resp.Request.URL.Path != e.expectedURL {
+			t.Errorf("%s: expected final url of %s, but got %s", e.name, e.expectedURL, resp.Request.URL.Path)
+		}
+
+		resp2, _ := client.Get(ts.URL + e.url)
+		if resp2.StatusCode != e.expectedFirstStatusCode {
+			t.Errorf("%s: expected first returned status code to be %d, but got %d", e.name, e.expectedFirstStatusCode, resp2.StatusCode)
 		}
 	}
 }
