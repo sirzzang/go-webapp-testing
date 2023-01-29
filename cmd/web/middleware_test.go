@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"webapp/pkg/data"
 )
 
 func Test_application_addIPToContext(t *testing.T) {
@@ -73,6 +74,46 @@ func Test_application_ipFromContext(t *testing.T) {
 	// perform the test
 	if !strings.EqualFold("192.168.159.21", ip) {
 		t.Error("Wrong value returned from context")
+	}
+
+}
+
+func TestApp_auth(t *testing.T) {
+
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+
+	})
+
+	tests := []struct {
+		name            string
+		isAuthenticated bool
+		expectedCode    int
+	}{
+		{"logged in", true, http.StatusOK},
+		{"not logged in", false, http.StatusTemporaryRedirect},
+	}
+
+	for _, e := range tests {
+
+		handlerToTest := app.auth(nextHandler)
+
+		req := httptest.NewRequest("GET", "http://testing", nil)
+		req = addContextAndSessionToRequest(req, app)
+		if e.isAuthenticated {
+			app.Session.Put(req.Context(), "user", data.User{ID: 1})
+		}
+
+		rr := httptest.NewRecorder()
+		handlerToTest.ServeHTTP(rr, req)
+
+		if e.isAuthenticated && rr.Code != e.expectedCode {
+			t.Errorf("%s: expected status code %d, but got %d", e.name, e.expectedCode, rr.Code)
+		}
+
+		if !e.isAuthenticated && rr.Code != e.expectedCode {
+			t.Errorf("%s: expected status code %d, but got %d", e.name, e.expectedCode, rr.Code)
+		}
+
 	}
 
 }
