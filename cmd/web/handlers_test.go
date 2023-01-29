@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -116,6 +117,76 @@ func TestApp_renderParseWithBadTemplate(t *testing.T) {
 	t.Log(err)
 	if err == nil {
 		t.Error("Expected error when parsing bad template, but did not get one.")
+	}
+}
+
+func TestApp_login(t *testing.T) {
+	tests := []struct {
+		name               string
+		postedData         url.Values
+		expectedStatusCode int
+		expectedLoc        string
+	}{
+		{
+			name: "valid login",
+			postedData: url.Values{
+				"email":    {"admin@example.com"}, // you might have more than one thing(e.g. checkboxes)
+				"password": {"secret"},
+			},
+			expectedStatusCode: http.StatusSeeOther,
+			expectedLoc:        "/user/profile",
+		},
+		{
+			name: "missing form data",
+			postedData: url.Values{
+				"email":    {"admin@example.com"}, // you might have more than one thing(e.g. checkboxes)
+				"password": {""},
+			},
+			expectedStatusCode: http.StatusSeeOther,
+			expectedLoc:        "/",
+		},
+		{
+			name: "user not found",
+			postedData: url.Values{
+				"email":    {"hello@world.com"}, // you might have more than one thing(e.g. checkboxes)
+				"password": {"password"},
+			},
+			expectedStatusCode: http.StatusSeeOther,
+			expectedLoc:        "/",
+		},
+		{
+			name: "bad credentials",
+			postedData: url.Values{
+				"email":    {"admin@example.com"}, // you might have more than one thing(e.g. checkboxes)
+				"password": {"secre"},
+			},
+			expectedStatusCode: http.StatusSeeOther,
+			expectedLoc:        "/",
+		},
+	}
+
+	for _, e := range tests {
+
+		req, _ := http.NewRequest("POST", "/login", strings.NewReader(e.postedData.Encode()))
+		req = addContextAndSessionToRequest(req, app)
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rr := httptest.NewRecorder()
+
+		handler := http.HandlerFunc(app.Login)
+		handler.ServeHTTP(rr, req)
+
+		if rr.Code != e.expectedStatusCode {
+			t.Errorf("%s: returned wrong status code; expected: %d, but got %d", e.name, e.expectedStatusCode, rr.Code)
+		}
+
+		actualLoc, err := rr.Result().Location()
+		if err == nil {
+			if actualLoc.String() != e.expectedLoc {
+				t.Errorf("%s: returned wrong location; expected: %s, but got %s", e.name, e.expectedLoc, actualLoc.String())
+			}
+		} else {
+			t.Errorf("%s: returned no location header", e.name)
+		}
 	}
 }
 
