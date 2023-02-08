@@ -176,3 +176,79 @@ func TestPostgresDBRepo_AllUsers(t *testing.T) {
 	}
 
 }
+
+func TestPostgresDBRepo_GetUser(t *testing.T) {
+	user, err := testRepo.GetUser(1)
+	if err != nil {
+		t.Errorf("GetUser returned an error: %s", err)
+	}
+
+	if user.Email != "admin@example.com" {
+		t.Errorf("wrong email returned by GetUser; expected admin@example.com but got %s", user.Email)
+	}
+
+	// non existing user
+	_, err = testRepo.GetUser(11)
+	if err == nil {
+		t.Errorf("GetUser returned no error when getting non existent user")
+	}
+
+}
+
+func TestPostgresDBRepo_GetUserByEmail(t *testing.T) {
+	user, err := testRepo.GetUserByEmail("sirzzang@example.com")
+	if err != nil {
+		t.Errorf("GetUserByEmail returned an error: %s", err)
+	}
+
+	if user.ID != 2 {
+		t.Errorf("wrong ID returned by GetUserByEmail; expected 2 but got %s", user.Email)
+	}
+}
+
+func TestPostgresDBRepo_UpdateUser(t *testing.T) {
+	user, _ := testRepo.GetUser(2)
+	user.FirstName = "Eraser"
+	user.Email = "eraser@example.com"
+
+	err := testRepo.UpdateUser(*user)
+	if err != nil {
+		t.Errorf("error updating user %d: %s", 2, err)
+	}
+
+	user, _ = testRepo.GetUser(2)
+	if user.FirstName != "Eraser" || user.Email != "eraser@example.com" {
+		t.Errorf("expected updated record to have first name Eraser and email eraser@example.com, but got %s, %s", user.FirstName, user.Email)
+	}
+}
+
+func TestPostgresDBRepo_DeleteUser(t *testing.T) {
+	err := testRepo.DeleteUser(2)
+	if err != nil {
+		t.Errorf("error deleting user id 2: %s", err)
+	}
+
+	_, err = testRepo.GetUser(2)
+	if err == nil {
+		t.Errorf("retrieved user id 2, who should have been deleted")
+	}
+}
+
+func TestPostgresDBRepo_ResetPassword(t *testing.T) {
+
+	err := testRepo.ResetPassword(1, "password")
+	if err != nil {
+		t.Errorf("error resetting user's password: %s", err)
+	}
+
+	user, _ := testRepo.GetUser(1)
+	matches, err := user.PasswordMatches("password")
+	if err != nil {
+		t.Error(err)
+	}
+
+	if !matches {
+		t.Errorf("password should match 'password' but not")
+	}
+
+}
