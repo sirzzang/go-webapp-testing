@@ -1,10 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"path"
+	"path/filepath"
 	"time"
 	"webapp/pkg/data"
 )
@@ -60,6 +64,9 @@ func (app *application) render(w http.ResponseWriter, r *http.Request, t string,
 	// retrieve data from session
 	td.Error = app.Session.PopString(r.Context(), "error")
 	td.Flash = app.Session.PopString(r.Context(), "flash")
+	if app.Session.Exists(r.Context(), "user") {
+		td.User = app.Session.Get(r.Context(), "user").(data.User)
+	}
 
 	// execute the template, passing it data, if any
 	err = parsedTemplate.Execute(w, td)
@@ -126,4 +133,91 @@ func (app *application) authenticate(r *http.Request, user *data.User, password 
 
 	app.Session.Put(r.Context(), "user", user)
 	return true
+}
+
+// TODO: file name might clash
+func (app *application) UploadProfilePic(w http.ResponseWriter, r *http.Request) {
+	// call a function that extracts a file from an upload (request)
+	files, err := app.uploadFiles(r, "./static/img")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// get the user from the session
+	user := app.Session.Get(r.Context(), "user").(data.User)
+
+	// create a variable of type data.UserImage
+	var i = data.UserImage{
+		UserID:   user.ID,
+		FileName: files[0].OriginalFileName,
+	}
+
+	// insert the user image into user_images
+	_, err = app.DB.InsertUserImage(i)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	// refresh the sessional variable "user"
+	updatedUser, err := app.DB.GetUser(user.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	app.Session.Put(r.Context(), "user", updatedUser)
+
+	// redirect back to profile page
+	http.Redirect(w, r, "/user/profile", http.StatusSeeOther)
+}
+
+type UploadedFile struct {
+	OriginalFileName string
+	FileSize         int64
+}
+
+func (app *application) uploadFiles(r *http.Request, uploadDir string) ([]*UploadedFile, error) {
+
+	var uploadedFiles []*UploadedFile
+
+	err := r.ParseMultipartForm(int64(1024 * 1024 * 5)) // 5MiB
+	if err != nil {
+		return nil, fmt.Errorf("the uploaded file is too big, and must be less than %d bytes", 1024*1024*5)
+	}
+
+	for _, fHeaders := range r.MultipartForm.File {
+		for _, hdr := range fHeaders {
+			uploadedFiles, err = func(uploadedFiles []*UploadedFile) ([]*UploadedFile, error) {
+				var uploadedFile UploadedFile
+
+				infile, err := hdr.Open()
+				if err != nil {
+					return nil, err
+				}
+				defer infile.Close()
+				uploadedFile.OriginalFileName = hdr.Filename
+
+				var outfile *os.File
+				defer outfile.Close()
+				if outfile, err = os.Create(filepath.Join(uploadDir, uploadedFile.OriginalFileName)); err != nil {
+					return nil, err
+				} else {
+					fileSize, err := io.Copy(outfile, infile)
+					if err != nil {
+						return nil, err
+					}
+					uploadedFile.FileSize = fileSize
+				}
+
+				uploadedFiles = append(uploadedFiles, &uploadedFile)
+				return uploadedFiles, nil
+			}(uploadedFiles)
+			if err != nil {
+				return uploadedFiles, err
+			}
+		}
+	}
+
+	return uploadedFiles, nil
 }

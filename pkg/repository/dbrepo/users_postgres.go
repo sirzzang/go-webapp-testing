@@ -235,7 +235,7 @@ func (m *PostgresDBRepo) InsertUserImage(i data.UserImage) (int, error) {
 	defer cancel()
 
 	stmt := `delete from user_images where user_id = $1`
-	_, err := m.DB.ExecContext(ctx, stmt)
+	_, err := m.DB.ExecContext(ctx, stmt, i.UserID)
 	if err != nil {
 		return 0, err
 	}
