@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"webapp/pkg/data"
 )
 
 func Test_application_handlers(t *testing.T) {
@@ -237,7 +239,7 @@ func addContextAndSessionToRequest(req *http.Request, app application) *http.Req
 
 }
 
-func TestApp_UploadFiles(t *testing.T) {
+func TestApp_uploadFiles(t *testing.T) {
 	// set up pipes
 	pr, pw := io.Pipe()
 
@@ -263,11 +265,61 @@ func TestApp_UploadFiles(t *testing.T) {
 
 	// perform tests
 	if _, err := os.Stat(fmt.Sprintf("./testdata/uploads/%s", uploadedFiles[0].OriginalFileName)); os.IsNotExist(err) {
-		t.Error("expected file to exist: %s", err.Error())
+		t.Errorf("expected file to exist: %s", err.Error())
 	}
 
 	// clean up
 	_ = os.Remove(fmt.Sprintf("./testdata/uploads/%s", uploadedFiles[0].OriginalFileName))
+
+	wg.Wait()
+}
+
+func TestApp_UploadProfilePic(t *testing.T) {
+	uploadPath = "./testdata/uploads"
+	fileName := "img.png"
+	filePath := fmt.Sprintf("./testdata/%s", fileName)
+
+	// specify a field name for the form
+	fieldName := "file"
+
+	// create bytes buffer to act as the request body
+	body := new(bytes.Buffer)
+
+	// create a multi writer
+	mw := multipart.NewWriter(body)
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	w, err := mw.CreateFormFile(fieldName, filePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := io.Copy(w, file); err != nil {
+		t.Fatal(err)
+	}
+
+	mw.Close()
+
+	// mock request
+	req := httptest.NewRequest("POST", "/upload", body)
+	req = addContextAndSessionToRequest(req, app)
+	app.Session.Put(req.Context(), "user", data.User{ID: 1})
+	req.Header.Add("Content-Type", mw.FormDataContentType())
+
+	// record response
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(app.UploadProfilePic)
+	handler.ServeHTTP(rr, req)
+	if rr.Code != http.StatusSeeOther {
+		t.Errorf("wrong status code")
+	}
+
+	_ = os.Remove(fmt.Sprintf("%s/%s", uploadPath, fileName))
 }
 
 func simulatePNGUpload(fileToUpload string, writer *multipart.Writer, t *testing.T, wg *sync.WaitGroup) {
