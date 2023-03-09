@@ -6,7 +6,6 @@ import (
 	"log"
 	"net/http"
 	"webapp/pkg/repository"
-	"webapp/pkg/repository/dbrepo"
 )
 
 const port = 8080
@@ -27,14 +26,17 @@ func main() {
 	flag.Parse()
 
 	// connect to DB
-	conn, err := app.connectToDB()
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer conn.Close()
-	app.DB = &dbrepo.PostgresDBRepo{DB: conn}
+	// conn, err := app.connectToDB()
+	// if err != nil {
+	// 	log.Fatal(err)
+	// }
+	// defer conn.Close()
+	// app.DB = &dbrepo.PostgresDBRepo{DB: conn}
 
 	log.Printf("Starting api on port %d\n", port)
 
-	err = http.ListenAndServe(fmt.Sprintf(":%d", port), app.routes())
+	err := http.ListenAndServe(fmt.Sprintf(":%d", port), app.routes())
+	if err != nil {
+		log.Fatal(err)
+	}
 }
