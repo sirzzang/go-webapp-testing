@@ -21,7 +21,7 @@ type application struct {
 func main() {
 	var app application
 
-	flag.StringVar(&app.JWTSecret, "jwt-secret", "2dce505d96a53c5768052ee90f3df2055657518dad489160df9913f66042e160", "secret")
+	flag.StringVar(&app.JWTSecret, "jwt-secret", "eraser-secret", "secret")
 	flag.StringVar(&app.Action, "action", "valid", "action: valid|expired")
 	flag.Parse()
 
