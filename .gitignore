@@ -2,3 +2,4 @@ postgres-data/
 static/
 img.png
 .DS_Store
+coverage.out
