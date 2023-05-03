@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -11,8 +12,8 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 )
 
-const jwtTokenExpiry = time.Minute * 15
-const refreshTokenExpiry = time.Hour * 24
+var jwtTokenExpiry = time.Minute * 15
+var refreshTokenExpiry = time.Hour * 24
 
 type TokenPairs struct {
 	Token        string `json:"access_token"`
@@ -117,7 +118,9 @@ func (app *application) generateTokenPairs(user *data.User) (TokenPairs, error) 
 	refreshTokenClaims["sub"] = fmt.Sprint(user.ID)
 
 	// set refresh token expiry; must be longer than jwt expiry
+	log.Println("refresh token expiry:", refreshTokenExpiry)
 	refreshTokenClaims["exp"] = time.Now().Add(refreshTokenExpiry).Unix()
+	log.Println("exp:", time.Unix(refreshTokenClaims["exp"].(int64), 0))
 	signedRefreshToken, err := token.SignedString([]byte(app.JWTSecret))
 	if err != nil {
 		return TokenPairs{}, err

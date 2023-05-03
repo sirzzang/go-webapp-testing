@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -72,6 +73,8 @@ func (app *application) refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if time.Unix(claims.ExpiresAt.Unix(), 0).Sub(time.Now()) > 30*time.Second {
+		log.Println("claims.ExpiresAt:", time.Unix(claims.ExpiresAt.Unix(), 0))
+		log.Println(time.Now())
 		app.errorJSON(w, errors.New("refresh token does not need renewed yet"), http.StatusTooEarly)
 		return
 	}
