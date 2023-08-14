@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -114,14 +113,13 @@ func (app *application) generateTokenPairs(user *data.User) (TokenPairs, error) 
 
 	// create the refresh token
 	refreshToken := jwt.New(jwt.SigningMethodHS256)
+
+	// set refresh token claims
 	refreshTokenClaims := refreshToken.Claims.(jwt.MapClaims)
 	refreshTokenClaims["sub"] = fmt.Sprint(user.ID)
+	refreshTokenClaims["exp"] = time.Now().Add(refreshTokenExpiry).Unix() // must be longer than jwt expiry
 
-	// set refresh token expiry; must be longer than jwt expiry
-	log.Println("refresh token expiry:", refreshTokenExpiry)
-	refreshTokenClaims["exp"] = time.Now().Add(refreshTokenExpiry).Unix()
-	log.Println("exp:", time.Unix(refreshTokenClaims["exp"].(int64), 0))
-	signedRefreshToken, err := token.SignedString([]byte(app.JWTSecret))
+	signedRefreshToken, err := refreshToken.SignedString([]byte(app.JWTSecret))
 	if err != nil {
 		return TokenPairs{}, err
 	}

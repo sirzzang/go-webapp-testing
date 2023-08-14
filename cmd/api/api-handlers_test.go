@@ -4,8 +4,11 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
+	"time"
+	"webapp/pkg/data"
 )
 
 func Test_app_authenticate(t *testing.T) {
@@ -35,6 +38,61 @@ func Test_app_authenticate(t *testing.T) {
 		if e.expectedStatusCode != rr.Code {
 			t.Errorf("%s: expeceted code %v, but got wrong status code %v", e.name, e.expectedStatusCode, rr.Code)
 		}
+	}
+}
+
+func Test_app_refresh(t *testing.T) {
+	tests := []struct {
+		name               string
+		token              string
+		expectedStatusCode int
+		resetRefreshTime   bool
+	}{
+		{"valid token", "", http.StatusOK, true},
+		{"valid but not expired", "", http.StatusTooEarly, false},
+		{"expired token", expiredToken, http.StatusBadRequest, false},
+	}
+
+	testUser := data.User{
+		ID:        1,
+		FirstName: "Admin",
+		LastName:  "User",
+		Email:     "admin@example.com",
+	}
+
+	// save the old refresh token expiry
+	oldRefreshTime := refreshTokenExpiry
+
+	for _, e := range tests {
+		var tkn string
+		if e.token == "" {
+			if e.resetRefreshTime {
+				refreshTokenExpiry = time.Second * 1
+			}
+			tokens, _ := app.generateTokenPairs(&testUser)
+			tkn = tokens.RefreshToken
+		} else {
+			tkn = e.token
+		}
+
+		postedData := url.Values{
+			"refresh_token": []string{tkn},
+		}
+
+		req, _ := http.NewRequest("POST", "/refresh-token", strings.NewReader(postedData.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rr := httptest.NewRecorder()
+
+		handler := http.HandlerFunc(app.refresh)
+		handler.ServeHTTP(rr, req)
+
+		if e.expectedStatusCode != rr.Code {
+			t.Errorf("%s: expeceted code %v, but got wrong status code %v", e.name, e.expectedStatusCode, rr.Code)
+		}
+
+		// recover the old refresh token expiry
+		refreshTokenExpiry = oldRefreshTime
 
 	}
+
 }
