@@ -22,9 +22,19 @@ func (m *TestDBRepo) AllUsers() ([]*data.User, error) {
 
 // GetUser returns one user by id
 func (m *TestDBRepo) GetUser(id int) (*data.User, error) {
-	var user = data.User{ID: 1}
+	var user = data.User{}
 
-	return &user, nil
+	if id == 1 {
+		user = data.User{
+			ID:        1,
+			FirstName: "Admin",
+			LastName:  "User",
+			Email:     "admin@example.com",
+		}
+		return &user, nil
+	}
+
+	return nil, errors.New("user not found")
 }
 
 // GetUserByEmail returns one user by email address
@@ -47,30 +57,25 @@ func (m *TestDBRepo) GetUserByEmail(email string) (*data.User, error) {
 
 // UpdateUser updates one user in the database
 func (m *TestDBRepo) UpdateUser(u data.User) error {
-
 	return nil
 }
 
 // DeleteUser deletes one user from the database, by id
 func (m *TestDBRepo) DeleteUser(id int) error {
-
 	return nil
 }
 
 // InsertUser inserts a new user into the database, and returns the ID of the newly inserted row
 func (m *TestDBRepo) InsertUser(user data.User) (int, error) {
-
 	return 2, nil
 }
 
 // ResetPassword is the method we will use to change a user's password.
 func (m *TestDBRepo) ResetPassword(id int, password string) error {
-
 	return nil
 }
 
 // InsertUserImage inserts a user profile image into the database.
 func (m *TestDBRepo) InsertUserImage(i data.UserImage) (int, error) {
-
 	return 1, nil
 }
